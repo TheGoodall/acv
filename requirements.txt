@@ -1,0 +1,6 @@
+matplotlib
+torchsummary
+av
+visdom
+numpy
+opencv-python-headless
