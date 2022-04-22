@@ -12,16 +12,16 @@ import torchvision
 from torchvision import transforms, datasets
 from torchsummary import summary
 import visdom
+import itertools
 
 vis = visdom.Visdom("localhost")
 
 
-# Load Dataset
-seconds = 10
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("We're using =>", device)
 
+# Load Dataset
 train_game_reader = torchvision.io.VideoReader("data/train_game.mp4", "video")
 train_movie_reader = torchvision.io.VideoReader(
     "data/train_movie.mp4", "video")
