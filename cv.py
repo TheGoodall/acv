@@ -22,20 +22,11 @@ seconds = 10
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("We're using =>", device)
 
-train_movie, _, _ = torchvision.io.read_video(
-    "data/train_movie.mp4", end_pts=seconds, pts_unit="sec")
+train_game_reader = torchvision.io.VideoReader("data/train_game.mp4", "video")
+train_movie_reader = torchvision.io.VideoReader(
+    "data/train_movie.mp4", "video")
+test_game_reader = torchvision.io.VideoReader("data/test_game.mp4", "video")
 
-train_movie = train_movie.permute(0, 3, 1, 2)
-
-train_game, _, _ = torchvision.io.read_video(
-    "data/train_game.mp4", end_pts=seconds, pts_unit="sec")
-
-train_game = train_game.permute(0, 3, 1, 2)
-
-test_game, _, _ = torchvision.io.read_video(
-    "data/test_game.mp4", end_pts=seconds, pts_unit="sec")
-
-test_game = test_game.permute(0, 3, 1, 2)
 
 segmentation = torchvision.models.detection.maskrcnn_resnet50_fpn(
     pretrained=True).eval()
