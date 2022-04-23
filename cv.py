@@ -55,7 +55,7 @@ def segmenter(image):
 
         yield masked_image[:, bounding_box[1]:bounding_box[3],
                            bounding_box[0]:bounding_box[2]].cpu()
-            new_output = masked_image[:, bounding_box[1]:bounding_box[3],
-                                      bounding_box[0]:bounding_box[2]].cpu()
-            outputs.append(new_output)
-    return outputs
+
+
+def get_patches(reader):
+    return itertools.chain.from_iterable(map(lambda a: (segmenter((a['data']/255).to(device))), reader))
