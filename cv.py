@@ -33,6 +33,10 @@ segmentation = torchvision.models.detection.maskrcnn_resnet50_fpn(
 segmentation.to(device)
 
 
+def process_frame(frame):
+    return (frame['data']/255).to(device)
+
+
 def segmenter(image):
     prob_threshold = 0.5
     score_theshold = 0.8
@@ -62,4 +66,4 @@ def segmenter(image):
 
 
 def get_patches(reader):
-    return itertools.chain.from_iterable(map(lambda a: (segmenter((a['data']/255).to(device))), reader))
+    return itertools.chain.from_iterable(map(lambda a: (segmenter(process_frame(a))), reader))
