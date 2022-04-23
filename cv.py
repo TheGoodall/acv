@@ -62,3 +62,7 @@ def segmenter(image):
 
 def get_patches(reader):
     return itertools.chain.from_iterable(map(lambda a: (segmenter(process_frame(a))), reader))
+
+
+def segment_frames(reader):
+    return map(lambda a: (process_frame(a), (segmenter(process_frame(a)))), reader)
