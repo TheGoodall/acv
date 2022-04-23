@@ -45,16 +45,20 @@ def segmenter(image):
 
     for i in range(len(probably_people_boxes)):
         bounding_box = [int(a) for a in probably_people_boxes[i]]
-        mask = probably_people_masks[i]
-        inv_mask = mask.logical_not()
+
+        mask = probably_people_masks[i].squeeze(0)
+        bounded_mask = mask[bounding_box[1]:bounding_box[3], bounding_box[0]:bounding_box[2]]
+        inv_bounded_mask = bounded_mask.logical_not()
+
+        bounded_image = image[:, bounding_box[1]:bounding_box[3], bounding_box[0]:bounding_box[2]]
+
         masked_image = torch.stack([
-            image[0].masked_fill(inv_mask, 0),
-            image[1].masked_fill(inv_mask, 0),
-            image[2].masked_fill(inv_mask, 0)])
+            bounded_image[0].masked_fill(inv_bounded_mask, 0),
+            bounded_image[1].masked_fill(inv_bounded_mask, 0),
+            bounded_image[2].masked_fill(inv_bounded_mask, 0)])
         masked_image = masked_image.squeeze(1)
 
-        yield masked_image[:, bounding_box[1]:bounding_box[3],
-                           bounding_box[0]:bounding_box[2]].cpu()
+        yield masked_image
 
 
 def get_patches(reader):
