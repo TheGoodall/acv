@@ -39,7 +39,7 @@ def process_frame(frame):
 
 def segmenter(image):
     prob_threshold = 0.5
-    score_theshold = 0.8
+    score_theshold = 0.9
     output = segmentation(image.unsqueeze(0))[0]
     valid_segments = torch.logical_and(
         output['labels'] == 1, output['scores'] >= score_theshold)
@@ -51,18 +51,13 @@ def segmenter(image):
         bounding_box = [int(a) for a in probably_people_boxes[i]]
 
         mask = probably_people_masks[i].squeeze(0)
-        bounded_mask = mask[bounding_box[1]:bounding_box[3], bounding_box[0]:bounding_box[2]]
-        inv_bounded_mask = bounded_mask.logical_not()
+        bounded_mask = mask[bounding_box[1]
+            :bounding_box[3], bounding_box[0]:bounding_box[2]]
 
-        bounded_image = image[:, bounding_box[1]:bounding_box[3], bounding_box[0]:bounding_box[2]]
+        bounded_image = image[:, bounding_box[1]
+            :bounding_box[3], bounding_box[0]:bounding_box[2]]
 
-        masked_image = torch.stack([
-            bounded_image[0].masked_fill(inv_bounded_mask, 0),
-            bounded_image[1].masked_fill(inv_bounded_mask, 0),
-            bounded_image[2].masked_fill(inv_bounded_mask, 0)])
-        masked_image = masked_image.squeeze(1)
-
-        yield masked_image
+        yield bounded_image, bounded_mask, bounding_box
 
 
 def get_patches(reader):
