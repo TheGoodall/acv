@@ -13,6 +13,7 @@ from torchvision import transforms, datasets
 from torchsummary import summary
 import visdom
 import itertools
+from enum import Enum, auto
 
 vis = visdom.Visdom("localhost")
 
@@ -31,6 +32,9 @@ test_game_reader = torchvision.io.VideoReader("data/test_game.mp4", "video")
 segmentation = torchvision.models.detection.maskrcnn_resnet50_fpn(
     pretrained=True).eval()
 segmentation.to(device)
+keypoint = torchvision.models.detection.keypointrcnn_resnet50_fpn(
+    pretrained=True).eval()
+keypoint.to(device)
 
 
 def process_frame(frame):
@@ -66,3 +70,50 @@ def get_patches(reader):
 
 def segment_frames(reader):
     return map(lambda a: (process_frame(a), (segmenter(process_frame(a)))), reader)
+
+
+class Pose(Enum):
+    FULL_BODY_STANDING = auto(),
+    FULL_BODY_SITTING = auto(),
+    HALF_BODY = auto(),
+    HEAD_ONLY = auto(),
+    OTHER = auto()
+
+
+# Section 1.2
+def get_pose_and_quality(patches):
+    for patch in patches:
+        image, mask, box = patch
+
+        output = keypoint(image.unsqueeze(0))
+
+        pose = Pose.FULL_BODY_SITTING
+        quality = 1
+
+        yield image, mask, box, pose, quality
+
+
+# Section 1.3
+def filter_based_on_quality(patches):
+    return map(lambda patch: patch[0:4], filter(lambda patch: patch[4] > 0.8 and patch[3] is not Pose.OTHER, patches))
+
+
+def patch_normalise(patchs):
+    return patchs
+
+
+# Section 1.4
+def augment(patches):
+    return patches
+
+
+training_data_movie = augment(patch_normalise(filter_based_on_quality(
+    get_pose_and_quality(get_patches(train_movie_reader)))))
+training_data_game = augment(patch_normalise(filter_based_on_quality(
+    get_pose_and_quality(get_patches(train_game_reader)))))
+
+
+image, mask, bounding_box, pose = next(training_data_game)
+win = vis.image(image)
+for image, mask, bounding_box, pose in training_data_game:
+    vis.image(image, win=win)
