@@ -15,9 +15,7 @@ import visdom
 import itertools
 from enum import Enum, auto
 
-vis = visdom.Visdom("localhost")
-
-
+vis = visdom.Visdom("10.66.1.77")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("We're using =>", device)
@@ -41,6 +39,7 @@ def process_frame(frame):
     return (frame['data']/255).to(device)
 
 
+# Section 1.1
 def segmenter(image):
     prob_threshold = 0.5
     score_theshold = 0.9
@@ -85,17 +84,100 @@ def get_pose_and_quality(patches):
     for patch in patches:
         image, mask, box = patch
 
-        output = keypoint(image.unsqueeze(0))
+        output = keypoint(image.unsqueeze(0))[0]
 
-        pose = Pose.FULL_BODY_SITTING
-        quality = 1
+        # Get only people
+        output_iter = filter(lambda a: a[0] == 1, zip(
+            output["labels"], output["scores"], output["keypoints"], output["keypoints_scores"]))
 
-        yield image, mask, box, pose, quality
+        # Get only the highest scoring person
+        highest_scoring = max(output_iter, key=lambda a: a[1])
+
+        # Get score for each keypoint
+        kp = list(zip(highest_scoring[2], highest_scoring[3]))
+
+        # Label keypoints
+        keys = [
+            "nose",
+            "left_eye",
+            "right_eye",
+            "left_ear",
+            "right_ear",
+            "left_shoulder",
+            "right_shoulder",
+            "left_elbow",
+            "right_elbow",
+            "left_wrist",
+            "right_wrist",
+            "left_hip",
+            "right_hip",
+            "left_knee",
+            "right_knee",
+            "left_ankle",
+            "right_ankle"]
+        kp = dict(zip(keys, kp))
+
+        def most_are_detected(kp, parts):
+            score = 0
+            for part in parts:
+                score += kp[part][1]
+            if score / len(parts) > 5:
+                return True
+            else:
+                return False
+
+        # Head detection
+        if most_are_detected(kp, ["nose", "left_eye", "right_eye", "left_ear", "right_ear"]):
+            head = True
+        else:
+            head = False
+
+        # chest detection
+        if most_are_detected(kp, ["right_shoulder", "left_shoulder", "right_elbow", "left_elbow"]):
+            chest = True
+        else:
+            chest = False
+
+        # legs and hands detection
+        if most_are_detected(kp, ["left_wrist", "right_wrist", "left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"]):
+            legs_and_hands = True
+        else:
+            legs_and_hands = False
+
+        if head and chest and legs_and_hands:
+            # Pose = Pose.FULL_BODY_...?
+            torso_top = (kp["left_shoulder"][0] + kp["right_shoulder"][0])/2
+            torso_bottom = (kp["left_hip"][0] + kp["right_hip"][0])/2
+            knees = (kp["left_knee"][0] + kp["right_knee"][0])/2
+
+            torso_vec = torso_bottom - torso_top
+            thigh_vec = knees - torso_bottom
+
+            torso_length = torch.norm(torso_vec)
+            thigh_length = torch.norm(thigh_vec)
+
+            abs_cos_angle = abs(torch.dot(torso_vec, thigh_vec) /
+                                (torso_length * thigh_length))
+            ratio = torso_length / thigh_length
+
+            if abs_cos_angle > 0.5 and ratio < 2:
+                pose = Pose.FULL_BODY_STANDING
+            else:
+                pose = Pose.FULL_BODY_SITTING
+
+            pose = Pose.FULL_BODY_STANDING
+        elif head and not chest:
+            pose = Pose.HEAD_ONLY
+        elif head and chest:
+            pose = Pose.HALF_BODY
+        else:
+            pose = Pose.OTHER
+        yield image, mask, box, pose
 
 
 # Section 1.3
 def filter_based_on_quality(patches):
-    return map(lambda patch: patch[0:4], filter(lambda patch: patch[4] > 0.8 and patch[3] is not Pose.OTHER, patches))
+    return filter(lambda patch: patch[3] is not Pose.OTHER, patches)
 
 
 def patch_normalise(patchs):
@@ -113,7 +195,12 @@ training_data_game = augment(patch_normalise(filter_based_on_quality(
     get_pose_and_quality(get_patches(train_game_reader)))))
 
 
-image, mask, bounding_box, pose = next(training_data_game)
-win = vis.image(image)
-for image, mask, bounding_box, pose in training_data_game:
-    vis.image(image, win=win)
+image, mask, bounding_box, pose = next(training_data_movie)
+imagewin = vis.image(image)
+textwin = vis.text(pose.name)
+for image, mask, bounding_box, pose in training_data_movie:
+    import time
+    time.sleep(1)
+    print("1")
+    vis.image(image, win=imagewin)
+    vis.text(pose.name, win=textwin)
