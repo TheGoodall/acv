@@ -183,26 +183,40 @@ def filter_based_on_quality(patches):
     return filter(lambda patch: patch[3] is not Pose.OTHER, patches)
 
 
-def patch_normalise(patchs):
-    return patchs
+def patch_normalise(patches):
+    for image, mask, box, pose in patches:
+        resizer = torchvision.transforms.Resize((500, 400))
+        normalizer = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        yield resizer(normalizer(image)), mask, box, pose
 
 
-# Section 1.4
-def augment(patches):
-    return patches
+training_data_movie = patch_normalise(filter_based_on_quality(
+    get_pose_and_quality(get_patches(train_movie_reader))))
+training_data_game = patch_normalise(filter_based_on_quality(
+    get_pose_and_quality(get_patches(train_game_reader))))
+
+# i = 1
+# for image, mask, bounding_box, pose in training_data_game:
+    # torchvision.utils.save_image(image, f"data_game_img/{pose.name}-{i}.png")
+    # i += 1
+# i = 1
+# for image, mask, bounding_box, pose in training_data_movie:
+    # torchvision.utils.save_image(image, f"data_img/{pose.name}-{i}.png")
+    # i += 1
 
 
-training_data_movie = augment(patch_normalise(filter_based_on_quality(
-    get_pose_and_quality(get_patches(train_movie_reader)))))
-training_data_game = augment(patch_normalise(filter_based_on_quality(
-    get_pose_and_quality(get_patches(train_game_reader)))))
+from torchvision import datasets
+game_dataset = datasets.ImageFolder("data_game_img")
+movie_dataset = datasets.ImageFolder("data_img")
+
+game_dataloader = torch.utils.data.DataLoader(game_dataset, batch_size=32, shuffle=True)
+movie_dataloader = torch.utils.data.DataLoader(movie_dataset, batch_size=32, shuffle=True)
+
+augmentations = torch.transforms.Compose([
+    transforms.RandomRotation(30),
+    transforms.RandomResizedCrop(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor()
+    ])
 
 
-image, mask, bounding_box, pose = next(training_data_movie)
-imagewin = vis.image(image)
-textwin = vis.text(pose.name)
-for image, mask, bounding_box, pose in training_data_movie:
-    import time
-    time.sleep(1)
-    vis.image(image, win=imagewin)
-    vis.text(pose.name, win=textwin)
