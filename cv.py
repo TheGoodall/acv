@@ -15,7 +15,7 @@ import visdom
 import itertools
 from enum import Enum, auto
 
-vis = visdom.Visdom("10.66.1.77")
+vis = visdom.Visdom("ncc1.clients.dur.ac.uk", port=42069)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("We're using =>", device)
@@ -87,8 +87,11 @@ def get_pose_and_quality(patches):
         output = keypoint(image.unsqueeze(0))[0]
 
         # Get only people
-        output_iter = filter(lambda a: a[0] == 1, zip(
-            output["labels"], output["scores"], output["keypoints"], output["keypoints_scores"]))
+        output_iter = list(filter(lambda a: a[0] == 1, zip(
+            output["labels"], output["scores"], output["keypoints"], output["keypoints_scores"])))
+
+        if len(output_iter) == 0:
+            continue
 
         # Get only the highest scoring person
         highest_scoring = max(output_iter, key=lambda a: a[1])
@@ -121,7 +124,7 @@ def get_pose_and_quality(patches):
             score = 0
             for part in parts:
                 score += kp[part][1]
-            if score / len(parts) > 5:
+            if score / len(parts) > 2:
                 return True
             else:
                 return False
@@ -201,6 +204,5 @@ textwin = vis.text(pose.name)
 for image, mask, bounding_box, pose in training_data_movie:
     import time
     time.sleep(1)
-    print("1")
     vis.image(image, win=imagewin)
     vis.text(pose.name, win=textwin)
